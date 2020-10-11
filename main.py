@@ -1,16 +1,21 @@
 import os
 
-from flask import Flask, request, redirect, url_for
+from authy.api import AuthyApiClient
+from flask import Flask, request, redirect, url_for, render_template, session, Response
 from twilio.twiml.messaging_response import MessagingResponse, Message
 from twilio.rest import Client
 from game_logic import Game
 
 sid = os.environ['TWILIO_ACCOUNT_SID']
 auth_token = os.environ['TWILIO_AUTH_TOKEN']
+authy_api_key = os.environ['AUTHY_API_KEY']
+
+
+api = AuthyApiClient(authy_api_key)
 
 client = Client(sid, auth_token)
 app = Flask(__name__)
-
+app.secret_key = 'random'
 
 def process_input(input, user_number):
 
@@ -77,11 +82,41 @@ def incoming_sms():
 
     return final_response
 
-
-# Just for debugging/testing purposes
-@app.route('/')
+# Lets refine for the user regs
+# Most of the code based on the twilio blog (credit to them)
+@app.route('/', methods=["GET", "POST"])
 def index():
-    return "Hello World! This is live from Ngrok!"
+    if request.method == "POST":
+        country_code = request.form.get("country_code")
+        phone_number = request.form.get("phone_number")
+        method = request.form.get("method")
+
+        session['country_code'] = country_code
+        session['phone_number'] = phone_number
+
+        api.phones.verification_start(phone_number, country_code, via=method)
+
+        return redirect(url_for("verify"))
+
+    return render_template("index.html")
+
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+    if request.method == "POST":
+        token = request.form.get("token")
+
+        phone_number = session.get("phone_number")
+        country_code = session.get("country_code")
+
+        verification = api.phones.verification_check(phone_number,
+                                                     country_code,
+                                                     token)
+
+        if verification.ok():
+            return Response("<h1>You are now verified!</h1>")
+
+    return render_template("verify.html")
+
 
 
 if __name__ == "__main__":
