@@ -52,7 +52,7 @@ def process_input(input, user_number):
         varied_response = 'Very well, Have a good day then. See you later!'
     else:
         varied_response = 'This is not a valid choice. Choose from one of the available responses. ' \
-                          'Alternatively, type hi or hello to view the welcome message again'
+                          'Alternatively, type hi to view the welcome message again'
 
     return varied_response
 
